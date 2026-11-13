@@ -50,7 +50,9 @@ COLUMN_MAP = {
     "Potassium\n(mg\n100 g)":                                    "potassium_mg",
     "Phosphore\n(mg\n100 g)":                                    "phosphorus_mg",
     "Zinc\n(mg\n100 g)":                                         "zinc_mg",
-    "Rétinol\n(µg\n100 g)":                                      "vitamin_a_ug",
+    # Total vitamin A activity (retinol + provitamin-A carotenoids), not "Rétinol" alone:
+    # retinol is ~0 for plant foods. Same definition as the USDA loaders ("Vitamin A, RAE").
+    "Activité\nvitaminique\nA,\néquivalents\nrétinol (µg\n100 g)": "vitamin_a_ug",
     "Vitamine\nD (µg\n100 g)":                                   "vitamin_d_ug",
     "Vitamine\nB6 (mg\n100 g)":                                  "vitamin_b6_mg",
     "Vitamine\nB12 (µg\n100 g)":                                 "vitamin_b12_ug",

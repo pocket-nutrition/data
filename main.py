@@ -10,6 +10,7 @@ import argparse
 import logging
 
 from loaders.ciqual import CiqualLoader
+from loaders.efsa_drv import EfsaDrvLoader
 from loaders.mccance import McCanceLoader
 from loaders.off import OffLoader
 from loaders.usda import UsdaLoader
@@ -28,6 +29,7 @@ ALL_LOADERS = {
     "usda_foundation": UsdaFoundationLoader,
     "usda_sr": UsdaSrLoader,
     "usda_cooking_yields": UsdaCookingYieldsLoader,
+    "efsa_drv": EfsaDrvLoader,
 }
 
 

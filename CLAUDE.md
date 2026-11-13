@@ -18,6 +18,7 @@ Currently supported sources:
 | USDA Foundation Foods 2024 | `usda_foundation_foods` | ~30 MB JSON ZIP | As released |
 | USDA SR Legacy 2018 | `usda_sr_foods` | ~22 MB JSON ZIP | Static (2018 snapshot) |
 | USDA Cooking Yields | `usda_cooking_yields` | small CSV/JSON | Static |
+| EFSA dietary reference values (DRV Finder) | `efsa_drv_values` | ~1.3 MB JSON | On new EFSA opinion |
 
 ## Architecture
 
@@ -32,6 +33,7 @@ loaders/
   usda_foundation.py # UsdaFoundationLoader → usda_foundation_foods (lab reference)
   usda_sr.py         # UsdaSrLoader         → usda_sr_foods (SR Legacy 2018)
   usda_cooking_yields.py # UsdaCookingYieldsLoader → usda_cooking_yields
+  efsa_drv.py        # EfsaDrvLoader        → efsa_drv_values (reference intakes, snapshot)
 db/
   models.py          # SQLAlchemy table definitions
   connection.py      # engine / session factory
@@ -40,6 +42,8 @@ tests/
 
 **Key design rules:**
 - All loaders are **idempotent**: they use `INSERT … ON CONFLICT DO UPDATE` — safe to re-run.
+  Exception: `efsa_drv` is a small snapshot with no stable upstream row id, so it replaces the whole
+  table in one transaction (rows EFSA withdraws disappear; a failed load keeps the previous data).
 - Files are cached in `DOWNLOAD_DIR` (`/data/raw` in production). Re-download only when `--force` is passed.
 - Adding a new source = create `loaders/<name>.py` extending `BaseLoader`, register in `main.py`.
 

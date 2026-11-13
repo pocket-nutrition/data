@@ -6,7 +6,7 @@ pocket-nutrition-ingest and pocket-nutrition-api read from these tables; they ne
 download upstream data themselves.
 """
 
-from sqlalchemy import BigInteger, Column, Float, ForeignKey, Integer, String, Text, DateTime, UniqueConstraint, func, inspect, text
+from sqlalchemy import BigInteger, Boolean, Column, Float, ForeignKey, Integer, String, Text, DateTime, UniqueConstraint, func, inspect, text
 from sqlalchemy.orm import DeclarativeBase, relationship
 
 
@@ -294,6 +294,54 @@ class UsdaCookingYield(Base):
     refreshed_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
 
+class EfsaDrvValue(Base):
+    """EFSA dietary reference values, one row per (source row, value kind).
+
+    Source: the dataset behind EFSA's DRV Finder
+    (https://multimedia.efsa.europa.eu/drvs/assets/data/languages/en/data.json), which lists, per
+    nutrient and population group, the values EFSA set: AI, AR, PRI, RI, UL, SSI. The upstream rows
+    are wide (one column per value kind) and sparse; this table stores them long so a value always
+    sits next to its unit, its source link and its note.
+
+    It is a snapshot: each load replaces the whole table in one transaction (the upstream file has
+    no stable row identifier, and rows EFSA withdraws must disappear). ``source_row`` is the row's
+    position in the file it was loaded from, only meaningful within that load.
+
+    ``raw`` keeps the upstream text verbatim ("(+) 70", "45–60", "ND"). ``value_min``/``value_max``
+    are the parsed bounds (equal for a point value, null when there is no number), and
+    ``is_increment`` marks pregnancy and lactation values that are added to the non-pregnant one.
+    """
+
+    __tablename__ = "efsa_drv_values"
+    __table_args__ = (
+        UniqueConstraint("source_row", "value_kind", name="uq_efsa_drv_value"),
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    source_row = Column(Integer, nullable=False)
+    classification = Column(Text, nullable=False)        # "Vitamins", "Minerals", "Energy"…
+    nutrient = Column(Text, nullable=False, index=True)  # EFSA name, e.g. "Iron"
+    population = Column(Text, nullable=False)            # "Adults", "Pregnant women"…
+    population_description = Column(Text, nullable=False)  # e.g. "Pregnant women (1st trimester)"
+    age_from = Column(Float, nullable=True)
+    age_to = Column(Float, nullable=True)
+    age_unit = Column(String(8), nullable=True)          # "y" or "mo"
+    age_label = Column(Text, nullable=True)              # upstream "Age displayed", verbatim
+    pal = Column(Float, nullable=True)                   # physical activity level, energy rows only
+    sex = Column(Text, nullable=True)                    # upstream label, e.g. "Male/Female"
+    is_male = Column(Boolean, nullable=False)
+    is_female = Column(Boolean, nullable=False)
+    value_kind = Column(String(16), nullable=False)      # ssi | ai | ar | ar_kcal | pri | ri | ul
+    raw = Column(Text, nullable=False)
+    value_min = Column(Float, nullable=True)
+    value_max = Column(Float, nullable=True)
+    is_increment = Column(Boolean, nullable=False)
+    unit = Column(Text, nullable=True)
+    source_link = Column(Text, nullable=True)
+    note = Column(Text, nullable=True)
+    refreshed_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
 def init_db(eng=None) -> None:
     import logging
     log = logging.getLogger(__name__)
@@ -302,7 +350,7 @@ def init_db(eng=None) -> None:
 
     # Migrate existing tables: add columns introduced after initial deployment.
     insp = inspect(target)
-    for table_cls in (OffProduct, CiqualFood, McCanceFood, UsdaFood, UsdaFoundationFood, UsdaSrFood, UsdaCookingYield, UsdaSrFoodPortion):
+    for table_cls in (OffProduct, CiqualFood, McCanceFood, UsdaFood, UsdaFoundationFood, UsdaSrFood, UsdaCookingYield, UsdaSrFoodPortion, EfsaDrvValue):
         tname = table_cls.__tablename__
         if insp.has_table(tname):
             existing = {col["name"] for col in insp.get_columns(tname)}
