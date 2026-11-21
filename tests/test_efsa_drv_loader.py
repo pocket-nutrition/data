@@ -117,6 +117,18 @@ def test_explode_uses_the_kind_link_then_falls_back_to_the_generic_one():
     assert by_kind["ai"]["source_link"] == "https://example.org/generic"
 
 
+def test_explode_upgrades_efsa_http_links_to_https_only():
+    row = _row(**{
+        "UL": 40, "UL Unit": "mg/day",
+        "Scientific Opinion UL LINK": "http://www.efsa.europa.eu/sites/default/files/assets/ndatolerableuil.pdf",
+        "AIs": 7, "AIs Unit": "mg/day",
+        "Scientific Opinion AR/PRI or AI or RI LINK": "http://example.org/other",
+    })
+    by_kind = {r["value_kind"]: r for r in explode_rows([row])}
+    assert by_kind["ul"]["source_link"] == "https://www.efsa.europa.eu/sites/default/files/assets/ndatolerableuil.pdf"
+    assert by_kind["ai"]["source_link"] == "http://example.org/other"
+
+
 def test_explode_kcal_alternative_borrows_the_ar_link():
     row = _row(Name="Energy", **{
         "ARs": 9.8, "ARs Unit": "MJ/day", "ARs alt": 2338, "ARs alt Unit": "kcal/day",

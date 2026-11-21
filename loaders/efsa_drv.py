@@ -24,6 +24,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable
+from urllib.parse import urlsplit
 
 from sqlalchemy import delete, insert
 
@@ -38,6 +39,8 @@ EFSA_DRV_URL = "https://multimedia.efsa.europa.eu/drvs/assets/data/languages/en/
 # The generic link/note columns EFSA fills when a row has a single AR/PRI, AI or RI opinion.
 _GENERIC_LINK = "Scientific Opinion AR/PRI or AI or RI LINK"
 _GENERIC_NOTE = "Additional information related to AR/PRI or AI or RI results"
+# Hosts whose http:// links are rewritten to https:// (checked by hand: same document on both).
+_HTTPS_HOSTS = {"www.efsa.europa.eu", "efsa.europa.eu"}
 
 _NUMBER = r"\d+(?:\.\d+)?"
 _RANGE_RE = re.compile(rf"^({_NUMBER})\s*[–-]\s*({_NUMBER})$")
@@ -108,6 +111,14 @@ def _text(value: Any) -> str | None:
     return text or None
 
 
+def _link(value: Any) -> str | None:
+    """EFSA still lists some opinions under http://; the same pages answer on https, which clients link to."""
+    text = _text(value)
+    if text and text.startswith("http://") and urlsplit(text).hostname in _HTTPS_HOSTS:
+        return "https://" + text[len("http://"):]
+    return text
+
+
 def _number(value: Any) -> float | None:
     if isinstance(value, bool) or value is None:
         return None
@@ -152,8 +163,8 @@ def explode_rows(rows: Iterable[dict]) -> list[dict]:
                 "value_max": value_max,
                 "is_increment": is_increment,
                 "unit": _text(row.get(f"{kind.source} Unit")),
-                "source_link": _text(row.get(f"Scientific Opinion {kind.link_source} LINK"))
-                or _text(row.get(_GENERIC_LINK)),
+                "source_link": _link(row.get(f"Scientific Opinion {kind.link_source} LINK"))
+                or _link(row.get(_GENERIC_LINK)),
                 "note": _text(row.get(f"Additional information related to {kind.link_source} results"))
                 or _text(row.get(_GENERIC_NOTE)),
             })
